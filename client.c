@@ -1,10 +1,14 @@
 #include "client.h"
+#include <openssl/sha.h>
 
 void client(const char *IP, const char *filePath) {
   int sockfd;
   struct sockaddr_in servaddr;
   char buffer[BUFFER_SIZE];
   size_t bytesRead;
+
+  unsigned char hash[SHA256_DIGEST_LENGTH];
+  calculate_file_hash(filePath, hash);
 
   sockfd = socket(AF_INET, SOCK_STREAM, 0);
   if (sockfd == -1) {
@@ -24,6 +28,13 @@ void client(const char *IP, const char *filePath) {
   }
 
   printf("Connected to the server: %s\n", IP);
+
+  printf("Sending file hash to server\n");
+  if (send(sockfd, hash, SHA256_DIGEST_LENGTH, 0) == -1) {
+    perror("Error sending hash");
+    close(sockfd);
+    exit(EXIT_FAILURE);
+  }
 
   FILE *file = fopen(filePath, "rb");
   if (file == NULL) {

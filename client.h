@@ -10,6 +10,8 @@
 #include <sys/socket.h>
 #include <unistd.h> // read(), write(), close()
 
+#include "hash.h"
+
 #define PORT 8080
 #define BUFFER_SIZE 1024
 #define SA struct sockaddr
