@@ -1,6 +1,4 @@
-#include "server.h"
-#include <openssl/err.h>
-#include <openssl/evp.h>
+#include "../include/server.h"
 
 void server(const char *filename) {
   int sockfd, connfd;
@@ -10,6 +8,8 @@ void server(const char *filename) {
   unsigned char receivedHash[SHA256_DIGEST_LENGTH];
   unsigned char calculatedHash[SHA256_DIGEST_LENGTH];
   EVP_MD_CTX *mdctx = NULL;
+  unsigned char key[AES_KEY_SIZE]; // Klucz AES
+  unsigned char iv[AES_BLOCK_SIZE];
 
   sockfd = socket(AF_INET, SOCK_STREAM, 0);
   if (sockfd == -1) {
@@ -69,6 +69,24 @@ void server(const char *filename) {
   }
   printf("Hash received from client.\n");
 
+  // Odbieranie klucza AES
+  bytesRead = recv(connfd, key, AES_KEY_SIZE, 0);
+  if (bytesRead != AES_KEY_SIZE) {
+    perror("Error receiving AES key");
+    close(connfd);
+    close(sockfd);
+    exit(EXIT_FAILURE);
+  }
+
+  // Odbieranie wektora IV
+  bytesRead = recv(connfd, iv, AES_BLOCK_SIZE, 0);
+  if (bytesRead != AES_BLOCK_SIZE) {
+    perror("Error receiving IV");
+    close(connfd);
+    close(sockfd);
+    exit(EXIT_FAILURE);
+  }
+
   FILE *file = fopen(filename, "wb");
   if (file == NULL) {
     perror("Error opening file");
@@ -97,8 +115,23 @@ void server(const char *filename) {
 
   printf("Receiving file...\n");
   while ((bytesRead = recv(connfd, buffer, sizeof(buffer), 0)) > 0) {
-    fwrite(buffer, sizeof(char), bytesRead, file);
-    if (EVP_DigestUpdate(mdctx, buffer, bytesRead) != 1) {
+    // Odszyfrowanie danych przed zapisaniem do pliku
+    unsigned char decryptedBuffer[BUFFER_SIZE];
+    int decryptedLength = aes_decrypt_buffer((unsigned char *)buffer, bytesRead,
+                                             key, iv, decryptedBuffer);
+
+    if (decryptedLength < 0) {
+      perror("Error decrypting file data");
+      EVP_MD_CTX_free(mdctx);
+      fclose(file);
+      close(connfd);
+      close(sockfd);
+      exit(EXIT_FAILURE);
+    }
+
+    fwrite(decryptedBuffer, sizeof(char), decryptedLength, file);
+
+    if (EVP_DigestUpdate(mdctx, decryptedBuffer, decryptedLength) != 1) {
       perror("Error updating digest");
       EVP_MD_CTX_free(mdctx);
       fclose(file);
@@ -131,10 +164,10 @@ void server(const char *filename) {
 
   EVP_MD_CTX_free(mdctx);
 
-  if (!compare_hashes(receivedHash, calculatedHash, SHA256_DIGEST_LENGTH)) {
-    printf("Hash mismatch! File may be corrupted.\n");
-  } else {
+  if (compare_hashes(receivedHash, calculatedHash, SHA256_DIGEST_LENGTH)) {
     printf("Hash matches. File integrity verified.\n");
+  } else {
+    printf("Hash mismatch! File may be corrupted.\n");
   }
 
   close(connfd);

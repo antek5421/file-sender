@@ -1,5 +1,4 @@
-#include "client.h"
-#include <openssl/sha.h>
+#include "../include/client.h"
 
 void client(const char *IP, const char *filePath) {
   int sockfd;
@@ -9,6 +8,14 @@ void client(const char *IP, const char *filePath) {
 
   unsigned char hash[SHA256_DIGEST_LENGTH];
   calculate_file_hash(filePath, hash);
+
+  unsigned char key[AES_KEY_SIZE];
+  unsigned char iv[AES_BLOCK_SIZE];
+
+  if (!RAND_bytes(key, sizeof(key)) || !RAND_bytes(iv, sizeof(iv))) {
+    perror("Error generating AES key/IV");
+    exit(EXIT_FAILURE);
+  }
 
   sockfd = socket(AF_INET, SOCK_STREAM, 0);
   if (sockfd == -1) {
@@ -36,6 +43,14 @@ void client(const char *IP, const char *filePath) {
     exit(EXIT_FAILURE);
   }
 
+  printf("Sending AES key and IV to the server\n");
+  if (send(sockfd, key, AES_KEY_SIZE, 0) == -1 ||
+      send(sockfd, iv, AES_BLOCK_SIZE, 0) == -1) {
+    perror("Error sending key/IV");
+    close(sockfd);
+    exit(EXIT_FAILURE);
+  }
+
   FILE *file = fopen(filePath, "rb");
   if (file == NULL) {
     perror("Error opening file");
@@ -43,17 +58,28 @@ void client(const char *IP, const char *filePath) {
     exit(EXIT_FAILURE);
   }
 
-  printf("Sending file: %s to server\n", filePath);
+  printf("Sending encrypted file: %s to server\n", filePath);
 
   while ((bytesRead = fread(buffer, sizeof(char), BUFFER_SIZE, file)) > 0) {
-    if (send(sockfd, buffer, bytesRead, 0) == -1) {
-      perror("Error sending file");
+    unsigned char encryptedBuffer[BUFFER_SIZE];
+    int encryptedLength = aes_encrypt_buffer((unsigned char *)buffer, bytesRead,
+                                             key, iv, encryptedBuffer);
+
+    if (encryptedLength < 0) {
+      perror("Error encrypting data");
+      fclose(file);
+      close(sockfd);
+      exit(EXIT_FAILURE);
+    }
+
+    // Sending the encrypted buffer
+    if (send(sockfd, encryptedBuffer, encryptedLength, 0) == -1) {
+      perror("Error sending encrypted file");
       fclose(file);
       close(sockfd);
       exit(EXIT_FAILURE);
     }
   }
-
   if (ferror(file)) {
     perror("Error reading file");
     fclose(file);
