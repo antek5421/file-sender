@@ -15,13 +15,13 @@ The client-server communication is based on TCP sockets, and the project is impl
 - **Socket communication**: Utilizes low-level socket programming to establish a connection between client and server.
 - **Cross-platform**: This project should work on any UNIX-like system (Linux, macOS) with a C compiler.
 - **Error handling**: Basic error checks are implemented for file operations and socket communications.
+- **AES Encryption**: Encrypts files during transfer to ensure data security.
+
 
 ## Planned Features
 
 In future updates, the following features are planned to enhance the functionality of the file transfer system:
 
-- **Encryption**: Files will be encrypted during transfer to ensure secure communication between the client and server.
-- **Authentication**: Add user authentication to verify the sender and recipient before file transfer.
 - **Multithreading**: Improve performance by enabling the server to handle multiple clients simultaneously using threads.
 
 ## Requirements
@@ -48,7 +48,7 @@ cd file-transfer
 To start the server, run the following command:
 
 ```bash
-./server <filename>
+./server -s <filename>
 ```
 Where <filename> is the name of the file the server will save once received from the client.
 
@@ -57,8 +57,8 @@ Where <filename> is the name of the file the server will save once received from
 To send a file to the server, use the following command:
 
 ```bash
-./client <server-ip> <filename>
+./client -c <server-ip> <filename>
 ```
 Where:
-    - <server-ip> is the IP address of the server (use 127.0.0.1 if running the server on the same machine).
+    - <server-ip> is the IP address of the server.
     - <filename> is the path to the file you want to send. 
