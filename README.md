@@ -22,7 +22,6 @@ In future updates, the following features are planned to enhance the functionali
 
 - **Encryption**: Files will be encrypted during transfer to ensure secure communication between the client and server.
 - **Authentication**: Add user authentication to verify the sender and recipient before file transfer.
-- **File Integrity Check**: Implement checks to verify that the file was received correctly and has not been tampered with during the transfer.
 - **Multithreading**: Improve performance by enabling the server to handle multiple clients simultaneously using threads.
 
 ## Requirements
@@ -30,7 +29,9 @@ In future updates, the following features are planned to enhance the functionali
 - A C compiler (e.g., GCC)
 - A terminal/command line environment
 - Basic understanding of socket programming in C
-
+- OpenSSL Library (for handling hashing functions and security)
+- POSIX-Compliant Operating System (Linux, macOS, or Windows with WSL)
+  
 ## Installation
 
 ### Clone the repository
